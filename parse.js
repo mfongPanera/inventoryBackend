@@ -1,3 +1,4 @@
+
 module.exports = function (data) {
     const dbData = {
         vendorId: data.vendorId,

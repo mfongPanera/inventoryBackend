@@ -1,3 +1,4 @@
+//JWT Generator
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 

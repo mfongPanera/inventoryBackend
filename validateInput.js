@@ -1,3 +1,4 @@
+
 module.exports =function(email, password,user_name, store_name, supervisor){
     if (!email && !password && !store_name && !supervisor) {
         return {type:false, value:"All fields are empty"};
