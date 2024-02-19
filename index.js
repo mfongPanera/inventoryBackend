@@ -86,59 +86,71 @@ app.get("/get_year/:date", async (req, res) => {
   }
 });
 
+const findDuplicates= (ids) => {
+  seen={}
+  duplicate=false
+  ids.forEach((id)=> seen[id] ? duplicate=true : seen[id]=true)
+  return duplicate
+}
+
 app.post("/importData",async (req,res) => {
   try {
     const data = req.body;
     const dataToDb = data.map((item)=>parse(item));
     const userName = dataToDb[0].updatedBy
     const foodProIDs = data.map((dataToDb)=>dataToDb.foodProId);
-    let selectQuery = `SELECT FOODPRO_ID FROM INVENTORY_MASTER_PRODUCTION WHERE ISACTIVE=${true} AND FOODPRO_ID IN (`
-    for (let i = 0; i < foodProIDs.length; i++) {
-      if(i==foodProIDs.length-1){
-        selectQuery+=`'${foodProIDs[i]}')`
-      } else{
-        selectQuery+=`'${foodProIDs[i]}',`
-      }
-    }
-    const selectResponse = await pool.query(selectQuery);
-    if(selectResponse.rowCount>0) {
-      const date = new Date().toISOString().slice(0,10)
-      let updateQuery = `UPDATE INVENTORY_MASTER_PRODUCTION SET ISACTIVE = '${false}', UPDATED_BY = '${userName}', 
-          UPDATED_DATE = '${date}' WHERE FOODPRO_ID IN (`
-      const updateIds = selectResponse.rows.map((row)=>row.foodpro_id)
-      for(let i=0;i<updateIds.length;i++) {
-        if(i==updateIds.length-1) {
-          updateQuery+=`'${updateIds[i]}')`
-        } else {
-          updateQuery+=`'${updateIds[i]}',`
+    if(findDuplicates(foodProIDs)) {
+        res.status(501)
+        res.json({"err":"Duplicate FoodPro ID found"})
+        res.send()
+    } else {
+        let selectQuery = `SELECT FOODPRO_ID FROM INVENTORY_MASTER_PRODUCTION WHERE ISACTIVE=${true} AND FOODPRO_ID IN (`
+        for (let i = 0; i < foodProIDs.length; i++) {
+        if(i==foodProIDs.length-1){
+          selectQuery+=`'${foodProIDs[i]}')`
+        } else{
+          selectQuery+=`'${foodProIDs[i]}',`
         }
-      }
-      const updatedRows = await pool.query(updateQuery)
-      if(updatedRows.rowCount==0) {
-        res.status(500)
-        res.json({"err":"Update Failed"})
+        }
+        const selectResponse = await pool.query(selectQuery);
+        if(selectResponse.rowCount>0) {
+          const date = new Date().toISOString().slice(0,10)
+          let updateQuery = `UPDATE INVENTORY_MASTER_PRODUCTION SET ISACTIVE = '${false}', UPDATED_BY = '${userName}', 
+              UPDATED_DATE = '${date}' WHERE FOODPRO_ID IN (`
+          const updateIds = selectResponse.rows.map((row)=>row.foodpro_id)
+          for(let i=0;i<updateIds.length;i++) {
+              if(i==updateIds.length-1) {
+                updateQuery+=`'${updateIds[i]}')`
+              } else {
+                updateQuery+=`'${updateIds[i]}',`
+              }
+            }
+          const updatedRows = await pool.query(updateQuery)
+          if(updatedRows.rowCount==0) {
+            res.status(500)
+            res.json({"err":"Update Failed"})
+            res.send()
+          }
+        }
+        dataToDb.forEach( async (ele)=>{
+        const insertQuery = getInsertQuery(ele);
+        const response = await pool.query(insertQuery)
+        if(response.rowCount==0) {
+            res.status(500)
+            res.json({"message":"Insert Failed"})
+            res.send()
+          }
+        })
+        res.status(200)
+        res.json({"message":"Insert Success"})
         res.send()
-      }
     }
-    dataToDb.forEach( async (ele)=>{
-      const insertQuery = getInsertQuery(ele);
-      console.log(insertQuery)
-      const response = await pool.query(insertQuery)
-      if(response.rowCount==0) {
-        res.status(500)
-        res.json({"message":"Insert Failed"})
-        res.send()
-      }
-    })
   } catch (err) {
     console.log(err)
     res.status(500)
     res.json({"message":"Insert Failed"})
     res.send()
   }
-  res.status(200)
-  res.json({"message":"Insert Success"})
-  res.send()
 });
 
 app.get("/get_all_items_description", async (req,res) => {
