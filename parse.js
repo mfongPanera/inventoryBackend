@@ -46,10 +46,8 @@ module.exports = function (data) {
         totalBags:0,
         totalLTR:0,
         totalSleeves:0,
-        ozToLBS: parseFloat(data.ozToLBS),
-        mlToOZ: parseFloat(data.mltooz),
-        ltrToOZ: parseFloat(data.lttooz),
-        mlToLTR: parseFloat(data.mltol)
+        category: data.category,
+        subCategory: data.subCategory
     }
     calculateOnHandInventory(dbData)
     return dbData
@@ -67,16 +65,16 @@ const calculateOnHandInventory = (dbData) => {
         let total_cases_ = _case_ + (bag_*size)/(pack*size)+(lbs_/(pack*size))
         let total_lbs_ = lbs_ + (_case_*(pack*size))+(bag_*size)
         let total_bags_ = bag_ + (_case_*pack)+((lbs_*size)/(pack*size))
-        dbData.totalCase = total_cases_;
-        dbData.totalLB = total_lbs_;
-        dbData.totalBags = total_bags_;
+        dbData.totalCase = 0;
+        dbData.totalLB = 0;
+        dbData.totalBags = 0;
     } else if(dbData.measurement === "OZ") {
         let total_cases_ = _case_ + (lbs_/((pack*size)/(ozToLbs)))+((oz/ozToLbs)/((pack*size)/ozToLbs));
         let totalOz = oz + (lbs_*(ozToLbs)) +(_case_ * (pack*size))
         let total_lbs_ = lbs_ + (oz/ozToLbs) + (_case_ * ((pack*size)/ozToLbs))
-        dbData.totalCase = total_cases_;
-        dbData.totalLB = total_lbs_;
-        dbData.totalOZ = totalOz;
+        dbData.totalCase = 0;
+        dbData.totalLB = 0;
+        dbData.totalOZ = 0;
     }
 }
 

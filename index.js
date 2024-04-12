@@ -32,6 +32,36 @@ app.post("/add_all_inventory/:date", async (req, res) => {
   }
 });
 
+app.post("/getAllItemsWithDesc", async(req,res)=> {
+  try {
+    const description=req.body.description
+    
+    let sql = `SELECT * FROM INVENTORY_MASTER_PRODUCTION WHERE ISACTIVE=${true} and DESCRIPTION IN (`
+    if(description.length==0) {
+      res.json({message:"No Data Found with searched item"})
+      res.send()
+    }
+    for(let i=0;i<description.length;i++) {
+      if(i==description.length-1) {
+        sql+=`'${description[i]}')`
+      } else {
+        sql+=`'${description[i]}',`
+      }
+    }
+    sql+=' ORDER BY DESCRIPTION'
+    const run = await pool.query(sql)
+    if(run.rowCount>0) {
+      res.json({data:run.rows}) 
+      res.send()
+    } else {
+      res.json({message:"No Data Found with searched item"})
+      res.send()
+    }
+  } catch(err) {
+    console.log(err.message);
+  }
+})
+
 app.post("/addItem",async (req,res) => {
   try {
     const data = req.body
@@ -73,6 +103,27 @@ app.get("/get_distinct_dates", async (req, res) => {
     console.error(err.message);
   }
 });
+
+app.put("/updateUOM",async (req,res)=> {
+  try {
+    const sql = `SELECT * FROM INVENTORY_MASTER_PRODUCTION`
+    const run = await pool.query(sql)
+    const data = run.rows 
+    data.forEach( async (e)=>{
+      let foodpro_id = e.foodpro_id
+      let measurement = e.measurement
+      let uom = e.uom
+      let updateSQL = `UPDATE INVENTORY_MASTER_PRODUCTION SET UOM='${measurement}', MEASUREMENT='${uom}' WHERE FOODPRO_ID='${foodpro_id}'`
+      const updateRES = await pool.query(updateSQL)
+      if(updateRES.rowCount==0) {
+        res.send({"message":"failed"})
+      }
+    })
+    res.send({"message":"success"})
+  } catch(err) {
+    console.log(err.message)
+  }
+})
 
 app.get("/get_year/:date", async (req, res) => {
   try {
@@ -146,7 +197,6 @@ app.post("/importData",async (req,res) => {
         res.send()
     }
   } catch (err) {
-    console.log(err)
     res.status(500)
     res.json({"message":"Insert Failed"})
     res.send()
@@ -228,6 +278,16 @@ app.get("/get_single_inventory_data/:foodpro_id", async (req, res) => {
   }
 });
 
+app.get("/getConversions",async (req,res)=> {
+  try {
+    const sql=`SELECT * FROM CONVERSIONS`
+    const run = await pool.query(sql)
+    res.json(run.rows[0])
+  } catch(err) {
+    console.log(err.message)
+  }
+})
+
 app.put(
   "/update_existing_inventory/:foodpro_id",
   async (req, res) => {
@@ -283,16 +343,16 @@ app.put(
     }
   }
 );
-app.listen(5000, () => {
-  console.log("Server has started at Port 5000");
+app.listen(process.env.PORT, () => {
+  console.log("Server has started at Port "+process.env.PORT);
 });
 
 const getInsertQuery = (dataToDB) => {
   const insertQuery = `INSERT INTO INVENTORY_MASTER_PRODUCTION (VENDOR_ID, FOODPRO_ID, CREATED_DATE, LOCATION_, SHOPNAME, 
       DESCRIPTION, SYSTEM_PAR, PACK, SIZE_, MEASUREMENT, UOM, CASE_, EA, LB, OZ, BAG, GAL, TRAY, OPENORDERS, ADJUSTEDPAR, 
       ADJUSTEDORDER, ORDER_, TOTALCASE, UNLOCK, SHOPID, UPDATED_DATE, UPDATED_BY, WEEK_DATE, MONTH_DATE, ISACTIVE, CREATED_BY, SLEEVES,SALES,
-      YEILD, ADJUSTED_SALES, TOTALTRAY, TOTALML, TOTALOZ, TOTALLB, TOTALGAL, TOTALGM, TOTALEACH, TOTALLTR, TOTALSLEEVES, 
-      OZTOLBS, MLTOOZ, LTRTOOZ, MLTOLTR, TOTALBAGS) VALUES ('${dataToDB.vendorId}', '${dataToDB.foodProId}', '${dataToDB.createdDate}',
+      YEILD, ADJUSTED_SALES, TOTALTRAY, TOTALML, TOTALOZ, TOTALLB, TOTALGAL, TOTALGM, TOTALEACH, TOTALLTR, TOTALSLEEVES, TOTALBAGS,
+      CATEGORY, SUBCATEGORY) VALUES ('${dataToDB.vendorId}', '${dataToDB.foodProId}', '${dataToDB.createdDate}',
       '${dataToDB.location}', '${dataToDB.shopName}','${dataToDB.description}',${dataToDB.systemPar},${dataToDB.pack},${dataToDB.size},
       '${dataToDB.measurement}','${dataToDB.uom}',${dataToDB.case},${dataToDB.ea},${dataToDB.lb},${dataToDB.oz},${dataToDB.bag}
       ,${dataToDB.gal},${dataToDB.tray},${dataToDB.openOrders},${dataToDB.adjustedPar},${dataToDB.adjustedOrder},${dataToDB.order}
@@ -300,7 +360,8 @@ const getInsertQuery = (dataToDB) => {
       ,'${dataToDB.week_date}','${dataToDB.month_date}',${dataToDB.isActive},'${dataToDB.createdBy}',${dataToDB.sleeves}
       ,${dataToDB.sales},${dataToDB.yield},${dataToDB.adjusted_sales},${dataToDB.totalTray},${dataToDB.totalML}
       ,${dataToDB.totalOZ},${dataToDB.totalLB},${dataToDB.totalGAL},${dataToDB.totalGM},${dataToDB.totalEach},${dataToDB.totalLTR}
-      ,${dataToDB.totalSleeves},${dataToDB.ozToLBS},${dataToDB.mlToOZ},${dataToDB.ltrToOZ},${dataToDB.mlToLTR},${dataToDB.totalBags})`
+      ,${dataToDB.totalSleeves},${dataToDB.totalBags},'${dataToDB.category}'
+      ,'${dataToDB.subCategory}')`
   return insertQuery;
 }
 
