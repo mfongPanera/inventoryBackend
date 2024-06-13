@@ -32,6 +32,61 @@ app.post("/add_all_inventory/:date", async (req, res) => {
   }
 });
 
+app.get("/getById/:id", async (req,res)=> {
+  try {
+    const {id} = req.params;
+    const sql = `SELECT * FROM INVENTORY_MASTER_PRODUCTION WHERE ISACTIVE=${true} AND (VENDOR_ID = '${id}' OR SYGMA_ID = '${id}' OR FOODPRO_ID = '${id}')`;
+    console.log(sql)
+    const run = await pool.query(sql);
+    if(run.rowCount==0) {
+      res.status(404)
+      res.send({"message":"No Rows Found Invalid ID"})
+    } else {
+      res.status(200)
+      res.json(run.rows)
+    }
+  } catch(err) {
+    console.log(err)
+  }
+})
+
+app.get("/getByCategory/:category", async (req,res)=> {
+  try {
+    let {category} = req.params 
+    category = category.toUpperCase()
+    const sql = `SELECT * FROM INVENTORY_MASTER_PRODUCTION WHERE ISACTIVE=${true} AND CATEGORY = '${category}'`
+    const run = await pool.query(sql);
+    if(run.rowCount==0) {
+      res.status(404)
+      res.send({"message":`No Items found with Catergory ${category}`})
+    } else {
+      res.status(200)
+      res.json(run.rows)
+    }
+  } catch (err) {
+    console.log(err)
+  }
+})
+
+app.get("/getBysubCategory/:subCategory", async (req,res)=> {
+  try {
+    let {subCategory} = req.params 
+    subCategory = subCategory.toUpperCase()
+    const sql = `SELECT * FROM INVENTORY_MASTER_PRODUCTION WHERE ISACTIVE=${true} AND SUBCATEGORY = '${subCategory}'`
+    const run = await pool.query(sql);
+    if(run.rowCount==0) {
+      res.status(404)
+      res.send({"message":`No Items found with SubCatergory ${subCategory}`})
+    } else {
+      res.status(200)
+      res.json(run.rows)
+    }
+  } catch (err) {
+    console.log(err)
+  }
+})
+
+
 app.post("/getAllItemsWithDesc", async(req,res)=> {
   try {
     const description=req.body.description
@@ -41,6 +96,7 @@ app.post("/getAllItemsWithDesc", async(req,res)=> {
       res.json({message:"No Data Found with searched item"})
       res.send()
     }
+    else {
     for(let i=0;i<description.length;i++) {
       if(i==description.length-1) {
         sql+=`'${description[i]}')`
@@ -57,6 +113,7 @@ app.post("/getAllItemsWithDesc", async(req,res)=> {
       res.json({message:"No Data Found with searched item"})
       res.send()
     }
+  }
   } catch(err) {
     console.log(err.message);
   }
@@ -185,6 +242,7 @@ app.post("/importData",async (req,res) => {
         }
         dataToDb.forEach( async (ele)=>{
         const insertQuery = getInsertQuery(ele);
+        console.log(insertQuery)
         const response = await pool.query(insertQuery)
         if(response.rowCount==0) {
             res.status(500)
@@ -310,6 +368,12 @@ app.put(
         total_case,
         total_lb,
         total_bags,
+        total_ea,
+        total_oz,
+        total_gal,
+        total_tray,
+        total_sleeve,
+        total_gm,
         sales,
         yield,
         updatedBy
@@ -331,6 +395,12 @@ app.put(
                             totalcase = ${Number(total_case)},
                             totallb= ${Number(total_lb)},
                             totalbags= ${Number(total_bags)},
+                            totalgal=${Number(total_gal)},
+                            totaleach=${Number(total_ea)},
+                            totaloz=${Number(total_oz)},
+                            totaltray=${Number(total_tray)},
+                            totalsleeves=${Number(total_sleeve)},
+                            totalgm=${Number(total_gm)},
                             yeild = ${yield},
                             updated_date = NOW(),
                             updated_by = '${updatedBy}'
@@ -352,7 +422,7 @@ const getInsertQuery = (dataToDB) => {
       DESCRIPTION, SYSTEM_PAR, PACK, SIZE_, MEASUREMENT, UOM, CASE_, EA, LB, OZ, BAG, GAL, TRAY, OPENORDERS, ADJUSTEDPAR, 
       ADJUSTEDORDER, ORDER_, TOTALCASE, UNLOCK, SHOPID, UPDATED_DATE, UPDATED_BY, WEEK_DATE, MONTH_DATE, ISACTIVE, CREATED_BY, SLEEVES,SALES,
       YEILD, ADJUSTED_SALES, TOTALTRAY, TOTALML, TOTALOZ, TOTALLB, TOTALGAL, TOTALGM, TOTALEACH, TOTALLTR, TOTALSLEEVES, TOTALBAGS,
-      CATEGORY, SUBCATEGORY) VALUES ('${dataToDB.vendorId}', '${dataToDB.foodProId}', '${dataToDB.createdDate}',
+      CATEGORY, SUBCATEGORY, GM, SYGMA_ID, SYGMA_STATUS, IBOH_STATUS) VALUES ('${dataToDB.vendorId}', '${dataToDB.foodProId}', '${dataToDB.createdDate}',
       '${dataToDB.location}', '${dataToDB.shopName}','${dataToDB.description}',${dataToDB.systemPar},${dataToDB.pack},${dataToDB.size},
       '${dataToDB.measurement}','${dataToDB.uom}',${dataToDB.case},${dataToDB.ea},${dataToDB.lb},${dataToDB.oz},${dataToDB.bag}
       ,${dataToDB.gal},${dataToDB.tray},${dataToDB.openOrders},${dataToDB.adjustedPar},${dataToDB.adjustedOrder},${dataToDB.order}
@@ -361,7 +431,7 @@ const getInsertQuery = (dataToDB) => {
       ,${dataToDB.sales},${dataToDB.yield},${dataToDB.adjusted_sales},${dataToDB.totalTray},${dataToDB.totalML}
       ,${dataToDB.totalOZ},${dataToDB.totalLB},${dataToDB.totalGAL},${dataToDB.totalGM},${dataToDB.totalEach},${dataToDB.totalLTR}
       ,${dataToDB.totalSleeves},${dataToDB.totalBags},'${dataToDB.category}'
-      ,'${dataToDB.subCategory}')`
+      ,'${dataToDB.subCategory}',${dataToDB.grams},'${dataToDB.sygmaId}', '${dataToDB.sygmaStatus}','${dataToDB.ibohStatus}')`
   return insertQuery;
 }
 

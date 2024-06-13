@@ -47,35 +47,141 @@ module.exports = function (data) {
         totalLTR:0,
         totalSleeves:0,
         category: data.category,
-        subCategory: data.subCategory
+        subCategory: data.subCategory,
+        grams:Number(data.grams),
+        sygmaId: data.sygmaId,
+        sygmaStatus: data.sygmaStatus,
+        ibohStatus:data.ibohStatus
     }
     calculateOnHandInventory(dbData)
     return dbData
 } 
 
-const calculateOnHandInventory = (dbData) => {
-    let _case_ = dbData.case; 
-    let bag_ = dbData.bag;
-    let size = dbData.size;
-    let pack = dbData.pack;
-    let lbs_ = dbData.lb;
-    let ozToLbs = dbData.ozToLBS;
-    let oz = dbData.oz;
-    if(dbData.measurement === "LB") {
-        let total_cases_ = _case_ + (bag_*size)/(pack*size)+(lbs_/(pack*size))
-        let total_lbs_ = lbs_ + (_case_*(pack*size))+(bag_*size)
-        let total_bags_ = bag_ + (_case_*pack)+((lbs_*size)/(pack*size))
-        dbData.totalCase = 0;
-        dbData.totalLB = 0;
-        dbData.totalBags = 0;
-    } else if(dbData.measurement === "OZ") {
-        let total_cases_ = _case_ + (lbs_/((pack*size)/(ozToLbs)))+((oz/ozToLbs)/((pack*size)/ozToLbs));
-        let totalOz = oz + (lbs_*(ozToLbs)) +(_case_ * (pack*size))
-        let total_lbs_ = lbs_ + (oz/ozToLbs) + (_case_ * ((pack*size)/ozToLbs))
-        dbData.totalCase = 0;
-        dbData.totalLB = 0;
-        dbData.totalOZ = 0;
+const getConversions = async () => {
+    try {
+        const uri='http://localhost:5000/getConversions';
+        const responses = await fetch(uri);
+        const conversions = await responses.json();
+        return conversions;
+      } catch(err) {
+        console.log(err)
+      }
+}
+
+const calculateOnHandInventory = async (dbData) => {
+    let caSe = dbData.case
+    let each = dbData.ea  
+    let ounce = dbData.oz 
+    let pounds = dbData.lb
+    let bags = dbData.bag
+    let gallons = dbData.gal
+    let trays = dbData.tray
+    let sleeve = dbData.sleeves
+    let gram = dbData.grams
+    let pack = dbData.pack 
+    let size = dbData.size
+    let unitOfMeasurement = dbData.uom
+    let unlocks = dbData.unlock.split('-')
+    let totalCase=0
+    let totalEach=0
+    let totalLBS=0
+    let totalOZ = 0
+    let totalBags=0
+    let totalGal=0
+    let totalTray=0
+    let totalSleeve = 0
+    let totalGM =0
+    const conversions = await getConversions();
+    let oztolbs = parseFloat(conversions.oztolbs);
+    let mltoltr = parseFloat(conversions.mltoltr);
+    let ltrtooz = parseFloat(conversions.ltrtooz);
+    let mltooz = parseFloat(conversions.mltooz);
+    let ltrtogal = parseFloat(conversions.ltrtogal);
+    let grtooz = parseFloat(conversions.grtooz);
+    for(let i=0;i<unlocks.length;i++) {
+      if(unlocks[i]==='CASE') {
+        totalCase+=caSe
+        
+      }
+      else if(unlocks[i] === 'EA') {
+        if(unitOfMeasurement == 'CT') {
+          totalCase+=(each/(pack*size))
+        } else {
+          totalCase+=(each/pack)
+        }
+      }
+      else if(unlocks[i]==='BAGS') {
+        totalCase+=(bags/pack)
+      }
+      
+      else if(unlocks[i] === 'LBS') {
+        if(unitOfMeasurement==='OZ') {
+          totalCase+=(pounds*oztolbs/(pack*size))
+        } else {
+          totalCase+=(pounds/(pack*size))
+        }
+      }
+      else if(unlocks[i] === 'OZ') {
+        if(unitOfMeasurement==='LBS') {
+          totalCase+=(ounce/(pack*size*oztolbs))
+        } else {
+          totalCase+=(ounce/(pack*size))
+        }
+      }
+      else if(unlocks[i] === 'GAL') {
+        totalCase+=(gallons/(pack*size))
+      }
+      else if(unlocks[i]==='TRAY') {
+        totalCase+=(trays/4)
+      }
+      else if(unlocks[i]==='SLEEVE') {
+        console.log(sleeve)
+        totalCase+=(sleeve/pack)
+      }
+      else if(unlocks[i]==='GRAM') {
+        
+      }
     }
+    if(unlocks.includes('EA')) {
+      if(unitOfMeasurement =='OZ' || unitOfMeasurement=='LBS' || unitOfMeasurement=='GAL' || unitOfMeasurement=='GM' 
+      || unitOfMeasurement=='ML') {
+        totalEach=totalCase*pack
+      } else {
+        totalEach=totalCase*pack*size
+      }
+    }
+    if(unlocks.includes('BAGS')) {
+      totalBags= totalCase*pack
+    }
+    if(unlocks.includes('LBS')) {
+      totalLBS=totalCase*pack*size
+      if(unitOfMeasurement==='OZ'){
+        totalLBS=totalLBS/oztolbs
+      }
+    }
+    if(unlocks.includes('OZ')) {
+      totalOZ = totalCase*pack*size
+      if(unitOfMeasurement==='LBS') {
+        totalOZ=totalOZ*oztolbs
+      }
+    }
+    if(unlocks.includes('GAL')) {
+      totalGal = totalCase*pack*size
+    }
+    if(unlocks.includes('TRAY')) {
+      totalTray = totalCase*4
+    }
+    if(unlocks.includes('SLEEVE')) {
+      totalSleeve = totalCase*pack;
+    }
+    dbData.totalBags = totalBags
+    dbData.totalCase = totalCase
+    dbData.totalTray = totalTray
+    dbData.totalOZ = totalOZ
+    dbData.totalLB = totalLBS
+    dbData.totalGAL = totalGal 
+    dbData.totalEach = totalEach 
+    dbData.totalSleeves = totalSleeve
 }
 
 const getDate = () => {
